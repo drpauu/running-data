@@ -1,4 +1,4 @@
-"""Feature engineering utilities for Strava streams."""
+"""Utilitats d'enginyeria de variables per als fluxos de Strava."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,7 +40,7 @@ def rolling_feature(x: pd.Series, win: int, fn: str) -> pd.Series:
         return r.min()
     if fn == "max":
         return r.max()
-    raise ValueError(f"Unsupported rolling function: {fn}")
+    raise ValueError(f"Funció de finestres no compatible: {fn}")
 
 
 def load_data(streams_csv: str, athletes_csv: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -50,7 +50,7 @@ def load_data(streams_csv: str, athletes_csv: str) -> Tuple[pd.DataFrame, pd.Dat
     required = ["athlete_id", "activity_id", "ts", "hr", "cadence", "speed_mps"]
     for col in required:
         if col not in streams.columns:
-            raise ValueError(f"Missing required column: {col}")
+            raise ValueError(f"Manca la columna obligatòria: {col}")
 
     if "grade" not in streams.columns:
         streams["grade"] = 0.0
@@ -163,7 +163,7 @@ def build_windows(
             act_list.append(int(act))
 
     if not X_list:
-        raise RuntimeError("No windows could be built. Check your sampling configuration.")
+        raise RuntimeError("No s'han pogut construir finestres. Comprova la configuració de mostreig.")
 
     X = np.stack(X_list).astype(np.float32)
     y = np.array(y_list, dtype=np.float32)

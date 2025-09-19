@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Train a TCN model with athlete embeddings on Strava stream data."""
+"""Entrena un model TCN amb incrustacions d'atletes sobre dades de Strava."""
 from __future__ import annotations
 
 import argparse
@@ -38,17 +38,17 @@ DEFAULT_FEATURES: Sequence[str] = (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--streams", type=Path, default=Path("strava_streams.csv"), help="Input CSV with Strava streams")
-    parser.add_argument("--athletes", type=Path, default=Path("athletes.csv"), help="Input CSV with athlete metadata")
-    parser.add_argument("--window", type=int, default=300, help="Window length in seconds")
-    parser.add_argument("--sample", type=int, default=5, help="Sampling interval in seconds")
-    parser.add_argument("--pred-horizon", type=int, default=0, help="Prediction horizon in seconds")
-    parser.add_argument("--epochs", type=int, default=20, help="Training epochs")
-    parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
-    parser.add_argument("--val-size", type=float, default=0.2, help="Validation split ratio")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Computation device")
-    parser.add_argument("--model-out", type=Path, default=Path("best_pace_predictor.pt"), help="Path to store the best model weights")
+    parser.add_argument("--streams", type=Path, default=Path("strava_streams.csv"), help="CSV d'entrada amb fluxos de Strava")
+    parser.add_argument("--athletes", type=Path, default=Path("athletes.csv"), help="CSV d'entrada amb metadades d'atletes")
+    parser.add_argument("--window", type=int, default=300, help="Longitud de la finestra en segons")
+    parser.add_argument("--sample", type=int, default=5, help="Interval de mostreig en segons")
+    parser.add_argument("--pred-horizon", type=int, default=0, help="Horitzó de predicció en segons")
+    parser.add_argument("--epochs", type=int, default=20, help="Nombre d'èpoques d'entrenament")
+    parser.add_argument("--batch-size", type=int, default=64, help="Mida del lot d'entrenament")
+    parser.add_argument("--val-size", type=float, default=0.2, help="Proporció de validació")
+    parser.add_argument("--seed", type=int, default=42, help="Llavor aleatòria per reproduïbilitat")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Dispositiu de càlcul")
+    parser.add_argument("--model-out", type=Path, default=Path("best_pace_predictor.pt"), help="Ruta per guardar els pesos del millor model")
     return parser
 
 
@@ -89,7 +89,7 @@ def main() -> None:
     val_dataset = RunWindows(X[val_mask], mapped_athletes[val_mask], y[val_mask])
 
     if len(train_dataset) == 0 or len(val_dataset) == 0:
-        raise RuntimeError("Not enough windows to create the requested train/validation split")
+        raise RuntimeError("No hi ha prou finestres per crear la partició d'entrenament i validació sol·licitada")
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size * 2, shuffle=False)
@@ -105,7 +105,7 @@ def main() -> None:
         args.model_out.parent.mkdir(parents=True, exist_ok=True)
         args.model_out.write_bytes(default_path.read_bytes())
         default_path.unlink()
-    print(f"Validation MAE: {best_val:.2f} s/km")
+    print(f"MAE de validació: {best_val:.2f} s/km")
 
 
 if __name__ == "__main__":
