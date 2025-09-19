@@ -1,4 +1,4 @@
-"""Helper functions for turning Strava streams into tidy CSV files."""
+"""Funcions d'ajuda per convertir fluxos de Strava en fitxers CSV ordenats."""
 from __future__ import annotations
 
 import datetime as dt
@@ -37,7 +37,7 @@ def _stream_to_frame(
 ) -> pd.DataFrame:
     time_stream = streams.get("time", {}).get("data", [])
     if not time_stream:
-        raise ValueError("Activity stream does not contain time data")
+        raise ValueError("El flux de l'activitat no conté dades de temps")
 
     def _get(key: str) -> List[float]:
         return streams.get(key, {}).get("data", [])
@@ -48,9 +48,15 @@ def _stream_to_frame(
     grade = _get("grade_smooth") or _get("grade_adjusted")
 
     length = len(time_stream)
-    for arr in (hr, cadence, velocity, grade):
+    per_tipus = {
+        "heartrate": hr,
+        "cadence": cadence,
+        "velocity": velocity,
+        "grade": grade,
+    }
+    for key, arr in per_tipus.items():
         if arr and len(arr) != length:
-            raise ValueError(f"Stream '{arr}' has invalid length")
+            raise ValueError(f"El flux '{key}' té una longitud no vàlida")
 
     timestamps = [activity_start + dt.timedelta(seconds=int(t)) for t in time_stream]
 
@@ -91,7 +97,7 @@ def download_streams_to_csv(
     per_page: int = 50,
     force: bool = False,
 ) -> None:
-    """Download activities and dump tidy CSV files ready for training."""
+    """Descarrega activitats i genera fitxers CSV ordenats llestos per entrenar."""
 
     output_streams = Path(output_streams)
     output_athletes = Path(output_athletes)
@@ -99,7 +105,7 @@ def download_streams_to_csv(
     output_athletes.parent.mkdir(parents=True, exist_ok=True)
 
     if output_streams.exists() and not force:
-        raise FileExistsError(f"{output_streams} already exists. Use force=True to overwrite")
+        raise FileExistsError(f"{output_streams} ja existeix. Utilitza force=True per sobreescriure")
 
     frames: List[pd.DataFrame] = []
     athlete_meta: Dict[str, List] = {
@@ -111,7 +117,7 @@ def download_streams_to_csv(
     profile = client.get_athlete()
     athlete_identifier = athlete_id or profile.get("id")
     if athlete_identifier is None:
-        raise RuntimeError("Unable to determine athlete id")
+        raise RuntimeError("No ha estat possible determinar l'identificador de l'atleta")
 
     profile_fcmax = profile.get("max_heartrate")
     athlete_meta["athlete_id"].append(athlete_identifier)
@@ -128,7 +134,7 @@ def download_streams_to_csv(
     for activity in activities:
         act_id = activity["id"]
         start = _parse_start_date(activity["start_date"])
-        logger_payload = json.dumps({"name": activity.get("name"), "id": act_id})
+        dades_registre = json.dumps({"name": activity.get("name"), "id": act_id})
         streams = client.get_activity_streams(act_id)
 
         frame = _stream_to_frame(
@@ -141,7 +147,8 @@ def download_streams_to_csv(
 
         if frame["speed_mps"].isna().all():
             distance = streams.get("distance", {}).get("data", [])
-            if distance:
+            time_stream = streams.get("time", {}).get("data", [])
+            if distance and time_stream:
                 times = np.asarray(time_stream, dtype=float)
                 dist = np.asarray(distance, dtype=float)
                 delta_dist = np.diff(dist, prepend=dist[0])
@@ -158,15 +165,15 @@ def download_streams_to_csv(
         if (current_fcmax is None or (isinstance(current_fcmax, float) and np.isnan(current_fcmax))) and fcmax_stream:
             athlete_meta["fcmax"][0] = fcmax_stream
 
-        print(f"Downloaded activity {logger_payload}")
+        print(f"Activitat descarregada {dades_registre}")
 
     if not frames:
-        raise RuntimeError("No activities retrieved. Check API scopes and filters.")
+        raise RuntimeError("No s'han recuperat activitats. Comprova els permisos de l'API i els filtres.")
 
     streams_df = pd.concat(frames, ignore_index=True)
     streams_df = streams_df.sort_values(["athlete_id", "activity_id", "ts"])
     streams_df.to_csv(output_streams, index=False, date_format="%Y-%m-%dT%H:%M:%SZ")
 
     pd.DataFrame(athlete_meta).to_csv(output_athletes, index=False)
-    print(f"Wrote streams to {output_streams}")
-    print(f"Wrote athlete metadata to {output_athletes}")
+    print(f"Fluxos desats a {output_streams}")
+    print(f"Metadades de l'atleta desades a {output_athletes}")

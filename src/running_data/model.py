@@ -1,4 +1,4 @@
-"""Temporal convolutional network with athlete embeddings."""
+"""Xarxa convolucional temporal amb incrustacions d'atletes."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -153,7 +153,7 @@ def train_model(model: PacePredictor, train_loader: DataLoader, val_loader: Data
         if val_loss < best_val:
             best_val = val_loss
             torch.save(model.state_dict(), "best_pace_predictor.pt")
-        print(f"Epoch {epoch:02d} | train_MAE={train_loss:.2f} s/km | val_MAE={val_loss:.2f} s/km")
+        print(f"Època {epoch:02d} | MAE_entrenament={train_loss:.2f} s/km | MAE_validació={val_loss:.2f} s/km")
 
     return best_val
 

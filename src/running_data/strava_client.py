@@ -1,4 +1,4 @@
-"""Utilities for downloading activities and streams from the Strava API."""
+"""Utilitats per descarregar activitats i fluxos de l'API de Strava."""
 from __future__ import annotations
 
 import dataclasses
@@ -16,20 +16,20 @@ STRAVA_API_BASE = "https://www.strava.com/api/v3"
 
 @dataclasses.dataclass
 class StravaClient:
-    """Thin wrapper around the Strava REST API.
+    """Client lleuger per a la API REST de Strava.
 
-    Parameters
+    Paràmetres
     ----------
     access_token:
-        OAuth access token with the required scopes (``activity:read_all``
-        for private activities).
+        Testimoni OAuth amb els permisos necessaris (``activity:read_all``
+        per a activitats privades).
     request_timeout:
-        Timeout applied to the underlying ``requests`` calls.
+        Temps màxim aplicat a les crides ``requests``.
     max_retries:
-        Number of retries performed when the API returns a temporary error
-        such as HTTP 429 (rate limit) or 5xx responses.
+        Nombre de reintents quan l'API retorna un error temporal
+        com ara HTTP 429 (limit de velocitat) o respostes 5xx.
     backoff_factor:
-        Base factor for the exponential backoff between retries.
+        Factor base per al backoff exponencial entre reintents.
     """
 
     access_token: str
@@ -40,7 +40,6 @@ class StravaClient:
     def _headers(self) -> Dict[str, str]:
         return {"Authorization": f"Bearer {self.access_token}"}
 
-    # ------------------------------------------------------------------
     def _request(self, method: str, path: str, **kwargs) -> requests.Response:
         url = f"{STRAVA_API_BASE}/{path.lstrip('/')}"
         headers = kwargs.pop("headers", {})
@@ -58,7 +57,7 @@ class StravaClient:
             if resp.status_code in {429, 500, 502, 503, 504}:
                 wait = self.backoff_factor ** attempt
                 logger.warning(
-                    "Strava API returned %s. Retrying in %.1fs (attempt %s/%s)",
+                    "L'API de Strava ha retornat %s. Reintent en %.1fs (intent %s/%s)",
                     resp.status_code,
                     wait,
                     attempt,
@@ -73,12 +72,10 @@ class StravaClient:
         resp.raise_for_status()
         return resp
 
-    # ------------------------------------------------------------------
     def get_athlete(self) -> Dict:
-        """Return metadata about the authenticated athlete."""
+        """Retorna les metadades de l'atleta autenticat."""
         return self._request("GET", "athlete").json()
 
-    # ------------------------------------------------------------------
     def iter_activities(
         self,
         *,
@@ -87,16 +84,16 @@ class StravaClient:
         per_page: int = 30,
         max_pages: int = 10,
     ) -> Iterable[Dict]:
-        """Yield activities for the authenticated athlete.
+        """Genera les activitats de l'atleta autenticat.
 
-        Parameters
+        Paràmetres
         ----------
         after, before:
-            Optional UTC datetimes used to filter the activities.
+            Dates UTC opcionals per filtrar les activitats.
         per_page:
-            Number of activities requested per API call (max 200).
+            Nombre d'activitats sol·licitades per crida (màxim 200).
         max_pages:
-            Safety limit that prevents accidental full history downloads.
+            Límit de seguretat per evitar descarregar tot l'historial per error.
         """
 
         params: Dict[str, object] = {"per_page": per_page}
@@ -116,7 +113,6 @@ class StravaClient:
                 yield act
             page += 1
 
-    # ------------------------------------------------------------------
     def get_activity_streams(
         self,
         activity_id: int,
@@ -126,24 +122,24 @@ class StravaClient:
         series_type: str = "time",
         resolution: str = "high",
     ) -> Dict[str, List]:
-        """Download the specified stream keys for an activity.
+        """Descarrega els fluxos especificats d'una activitat.
 
-        Parameters
+        Paràmetres
         ----------
         activity_id:
-            Identifier of the activity to query.
+            Identificador de l'activitat a consultar.
         keys:
-            List of stream types to request. When ``None`` the default keys are
-            ``["time", "heartrate", "cadence", "velocity_smooth", "grade_smooth"]``.
+            Llista de tipus de flux a demanar. Quan és ``None`` els tipus
+            per defecte són ``["time", "heartrate", "cadence", "velocity_smooth", "grade_smooth"]``.
         key_by_type:
-            Matches the Strava API parameter. When ``True`` the response is a
-            dictionary keyed by stream type.
+            Reprodueix el paràmetre de l'API de Strava. Si és ``True`` la
+            resposta és un diccionari indexat pel tipus de flux.
         series_type:
-            One of ``time``, ``distance`` or ``altitude``. ``time`` is the most
-            common when working with pace/HR data.
+            Un dels valors ``time``, ``distance`` o ``altitude``. ``time`` és el
+            més habitual per treballar amb ritme i freqüència cardíaca.
         resolution:
-            ``low`` (11 samples), ``medium`` (51 samples) or ``high`` (max). The
-            user supplied stream is interpolated to the requested resolution.
+            ``low`` (11 mostres), ``medium`` (51 mostres) o ``high`` (màxim).
+            El flux original es reinterpola a la resolució demanada.
         """
 
         if keys is None:
@@ -166,7 +162,7 @@ class StravaClient:
 
 
 def infer_fcmax_from_stream(stream: Dict[str, List]) -> Optional[float]:
-    """Return the maximum heart rate found in a stream dictionary."""
+    """Retorna la freqüència cardíaca màxima trobada en un diccionari de fluxos."""
 
     hr_stream = stream.get("heartrate", {})
     if not hr_stream:

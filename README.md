@@ -1,10 +1,8 @@
-# Running Data Pipeline
+# Canalització de dades de running
 
-Herramientas para descargar actividades desde la API de Strava, preparar los
-streams en ventanas de 5 segundos y entrenar una red temporal convolucional
-(TCN) con embeddings por atleta para predecir el ritmo (s/km).
+Ecosistema en Python per descarregar activitats de l'API de Strava, convertir els fluxos en finestres regulars de 5 segons i entrenar una xarxa convolucional temporal (TCN) amb incrustacions per atleta per predir el ritme en segons per quilòmetre.
 
-## Requisitos
+## Requisits
 
 ```bash
 python -m venv .venv
@@ -13,23 +11,32 @@ pip install -r requirements.txt
 export PYTHONPATH=src
 ```
 
-## Descarga de datos
+## Descarrega de dades detallades
 
 ```bash
 python scripts/fetch_strava.py --access-token <TOKEN>
 ```
 
-* Guarda `strava_streams.csv` con columnas:
-  `athlete_id,activity_id,ts,hr,cadence,speed_mps,grade,rpe`.
-* Guarda `athletes.csv` con `athlete_id,fcmax,critical_speed_mps` (CS opcional).
+* Desa `strava_streams.csv` amb les columnes `athlete_id,activity_id,ts,hr,cadence,speed_mps,grade,rpe`.
+* Desa `athletes.csv` amb `athlete_id,fcmax,critical_speed_mps` (la CS és opcional).
 
-### Parámetros útiles
+### Paràmetres útils
 
-* `--after/--before`: filtra por fechas ISO UTC (`2024-01-01T00:00:00`).
-* `--force`: sobrescribe CSV existentes.
-* También puedes usar la variable de entorno `STRAVA_ACCESS_TOKEN`.
+* `--after/--before`: filtra per dates ISO UTC (`2024-01-01T00:00:00`).
+* `--force`: sobreescriu els CSV existents.
+* També pots utilitzar la variable d'entorn `STRAVA_ACCESS_TOKEN`.
 
-## Entrenamiento del modelo
+## Resum de rendiment
+
+```bash
+python scripts/resum_strava.py --access-token <TOKEN>
+```
+
+* Exporta totes les activitats disponibles a `resum_activitats.csv` (pots canviar la ruta amb `--output`).
+* Calcula mètriques de rendiment (quilòmetres, temps en moviment, ritme mitjà, FC mitjana) i mostra un resum general al terminal.
+* Accepta els mateixos filtres de data (`--after/--before`) que l'eina de descàrrega.
+
+## Entrenament del model
 
 ```bash
 python scripts/train_tcn.py \
@@ -39,21 +46,15 @@ python scripts/train_tcn.py \
     --device cuda
 ```
 
-1. Convierte la velocidad a ritmo y calcula señales relativas (HR%max, %CS,
-   decoupling, cadencia normalizada).
-2. Re-muestrea cada 5s y crea agregados rodantes (1 y 5 min).
-3. Genera ventanas de 300s (60 pasos) y entrena la TCN + embedding de atleta.
-4. Evalúa con MAE (s/km) sobre el conjunto de validación separado por
-   actividad.
+1. Converteix la velocitat a ritme i calcula senyals relatives (percentatge de FC màxima, %CS, decoupling, cadència normalitzada).
+2. Re-mostra cada 5 segons i genera agregats rodants (1 i 5 minuts).
+3. Crea finestres de 300 segons (60 passos) i entrena la TCN amb l'incrustació d'atleta.
+4. Avalua amb MAE (s/km) sobre el conjunt de validació separat per activitat.
 
-El mejor modelo queda guardado en `best_pace_predictor.pt` (o la ruta indicada
-con `--model-out`).
+El millor model es guarda a `best_pace_predictor.pt` (o la ruta indicada amb `--model-out`).
 
-## Ajustes recomendados
+## Ajustos recomanats
 
-* Ajusta `--window` (180-480 s) y `--sample` según la resolución de tus
-  streams.
-* Si no tienes Critical Speed, deja la columna `critical_speed_mps` en blanco.
-  El código usará el ritmo directo.
-* Para fine-tuning por atleta, vuelve a ejecutar el script con datos recientes
-  y una tasa de aprendizaje más baja.
+* Ajusta `--window` (180-480 s) i `--sample` segons la resolució dels teus fluxos.
+* Si no tens Critical Speed, deixa la columna `critical_speed_mps` en blanc i el codi utilitzarà la velocitat directa.
+* Per fer fine-tuning per atleta, executa el script amb dades recents i una taxa d'aprenentatge més baixa.
